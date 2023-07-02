@@ -1,0 +1,23 @@
+[tool.poetry]
+name = "simple-blog-api"
+version = "0.1.0"
+description = ""
+authors = ["Nanashi <alksndr.zln@gmail.com>"]
+readme = "README.md"
+packages = []
+
+[tool.poetry.dependencies]
+python = "^3.11"
+fastapi = "^0.99.0"
+environs = "^9.5.0"
+uvicorn = "^0.22.0"
+sqlalchemy = "^2.0.17"
+psycopg2-binary = "^2.9.6"
+alembic = "^1.11.1"
+requests = "^2.31.0"
+py3-validate-email = "^1.0.5.post1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
