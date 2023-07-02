@@ -12,43 +12,43 @@ app = FastAPI()
 auth_handler = AuthHandler()
 
 
-@app.get('/users/list', status_code=HTTPStatus.OK, response_model=list[UserResponse])
+@app.get('/users/list', description='Отображение всех пользователей', status_code=HTTPStatus.OK, response_model=list[UserResponse])
 def list_users(db: Session = Depends(get_db)) -> Any:
     return db.query(User).all()
 
 
-@app.post('/users/create', status_code=HTTPStatus.CREATED, response_model=UserResponse)
+@app.post('/users/create', description='Создание пользователя', status_code=HTTPStatus.CREATED, response_model=UserResponse)
 def create_user(user: UserCreate, db: Session = Depends(get_db)):
     return User.create(user, auth_handler, db)
 
 
-@app.post('/users/token', status_code=HTTPStatus.OK)
-def get_token(user: UserAuthenticate, db: Session = Depends(get_db)):
+@app.post('/users/token', description='Получение токена (требуется авторизация)', status_code=HTTPStatus.OK)
+def get_token(user: UserAuthenticate, db: Session = Depends(get_db)) -> dict:
     user = User.login(user, auth_handler, db)
     return {'token': auth_handler.encode_token(user.id)}
 
 
-@app.post('/posts/create', status_code=HTTPStatus.CREATED, response_model=PostResponseSingle)
+@app.post('/posts/create', description='Создание поста (требуется авторизация)', status_code=HTTPStatus.CREATED, response_model=PostResponseSingle)
 def create_post(post: PostCreate, user_id=Depends(auth_handler.auth_wrapper), db: Session = Depends(get_db)):
     return Post.create(post, user_id, db)
 
 
-@app.get('/posts/list', status_code=HTTPStatus.OK, response_model=list[PostResponseMultiple])
+@app.get('/posts/list', description='Отображение всех постов', status_code=HTTPStatus.OK, response_model=list[PostResponseMultiple])
 def list_posts(db: Session = Depends(get_db)):
     return db.query(Post).all()
 
 
-@app.get('/posts/get/{post_id}', status_code=HTTPStatus.OK, response_model=PostResponseSingle)
+@app.get('/posts/get/{post_id}', description='Подробное отображение определенного поста', status_code=HTTPStatus.OK, response_model=PostResponseSingle)
 def get_post(post_id: int, db: Session = Depends(get_db)):
     return Post.get(post_id, db)
 
 
-@app.get('/posts/list/{user_id}', status_code=HTTPStatus.OK, response_model=PostResponseSingle)
+@app.get('/posts/list/{user_id}', description='Отображение всех постов определенного пользователя', status_code=HTTPStatus.OK, response_model=list[PostResponseMultiple])
 def list_user_posts(user_id: int, db: Session = Depends(get_db)):
     return db.query(Post).filter_by(user_id=user_id).all()
 
 
-@app.put('/posts/edit/{post_id}', status_code=HTTPStatus.ACCEPTED, response_model=PostResponseSingle)
+@app.put('/posts/edit/{post_id}', description='Изменение заголовка или текста поста (требуется авторизация)', status_code=HTTPStatus.ACCEPTED, response_model=PostResponseSingle)
 def edit_post(post_id: int, edited_post: PostEdit, user_id=Depends(auth_handler.auth_wrapper), db: Session = Depends(get_db)):
     post = Post.get(post_id, db)
     user = User.get(user_id, db)
@@ -64,7 +64,7 @@ def edit_post(post_id: int, edited_post: PostEdit, user_id=Depends(auth_handler.
     return post
 
 
-@app.delete('/posts/delete/{post_id}', status_code=HTTPStatus.ACCEPTED, response_model=PostResponseSingle)
+@app.delete('/posts/delete/{post_id}', description='Удаление определенного поста (требуется авторизация)', status_code=HTTPStatus.ACCEPTED, response_model=PostResponseSingle)
 def delete_post(post_id: int, user_id=Depends(auth_handler.auth_wrapper), db: Session = Depends(get_db)):
     post = Post.get(post_id, db)
     user = User.get(user_id, db)
@@ -78,7 +78,7 @@ def delete_post(post_id: int, user_id=Depends(auth_handler.auth_wrapper), db: Se
     return post
 
 
-@app.put('/posts/like/{post_id}', status_code=HTTPStatus.ACCEPTED, response_model=PostResponseSingle)
+@app.put('/posts/like/{post_id}', description='Лайк определенного поста (требуется авторизация)', status_code=HTTPStatus.ACCEPTED, response_model=PostResponseSingle)
 def like_post(post_id: int, user_id=Depends(auth_handler.auth_wrapper), db: Session = Depends(get_db)):
     post = Post.get(post_id, db)
     user = User.get(user_id, db)
@@ -87,7 +87,7 @@ def like_post(post_id: int, user_id=Depends(auth_handler.auth_wrapper), db: Sess
     return post
 
 
-@app.put('/posts/dislike/{post_id}', status_code=HTTPStatus.ACCEPTED, response_model=PostResponseSingle)
+@app.put('/posts/dislike/{post_id}', description='Дизлайк определенного поста (требуется авторизация)', status_code=HTTPStatus.ACCEPTED, response_model=PostResponseSingle)
 def dislike_post(post_id: int, user_id=Depends(auth_handler.auth_wrapper), db: Session = Depends(get_db)):
     post = Post.get(post_id, db)
     user = User.get(user_id, db)
