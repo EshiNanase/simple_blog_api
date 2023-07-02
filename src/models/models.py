@@ -1,13 +1,28 @@
 from sqlalchemy.orm import relationship, Session, deferred
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime
+from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Table
 from .database import Base
 from validate_email import validate_email
 from http import HTTPStatus
 from fastapi import HTTPException
+from sqlalchemy.ext.hybrid import hybrid_property
 from src.schemas.user import UserAuthenticate, UserCreate
 from src.schemas.post import PostCreate
 from src.utils.auth import AuthHandler
 from datetime import datetime
+
+user_post_likes = Table(
+    'user_post_likes',
+    Base.metadata,
+    Column('user_id', Integer, ForeignKey('users.id')),
+    Column('post_id', Integer, ForeignKey('posts.id'))
+)
+
+user_post_dislikes = Table(
+    'user_post_dislikes',
+    Base.metadata,
+    Column('user_id', Integer, ForeignKey('users.id')),
+    Column('post_id', Integer, ForeignKey('posts.id'))
+)
 
 
 class User(Base):
@@ -17,8 +32,8 @@ class User(Base):
     email = Column(String, unique=True, nullable=False, index=True)
     username = Column(String, unique=True, nullable=False, index=True)
     password = deferred(Column(String, nullable=False))
-
-    posts = relationship('Post', back_populates='creator')
+    liked_posts = relationship('Post', secondary=user_post_likes, back_populates='liked_by')
+    disliked_posts = relationship('Post', secondary=user_post_dislikes, back_populates='disliked_by')
 
     @classmethod
     def create(cls, user: UserCreate, auth_handler: AuthHandler, db: Session):
@@ -82,13 +97,60 @@ class User(Base):
 
 class Post(Base):
     __tablename__ = 'posts'
+
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String, nullable=False, index=True)
     description = Column(String, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    liked_by = relationship('User', secondary=user_post_likes, back_populates='liked_posts')
+    disliked_by = relationship('User', secondary=user_post_dislikes, back_populates='disliked_posts')
 
-    creator = relationship('User', back_populates='posts', uselist=False)
+    @hybrid_property
+    def total_likes(self):
+        return len(self.liked_by)
+
+    @hybrid_property
+    def total_dislikes(self):
+        return len(self.disliked_by)
+
+    def like(self, user: User, db: Session):
+
+        if self.user_id == user.id:
+            raise HTTPException(
+                status_code=HTTPStatus.BAD_REQUEST,
+                detail='you cant like your own post'
+            )
+
+        if user in self.liked_by:
+            self.liked_by.remove(user)
+            db.commit()
+            return
+
+        if user in self.disliked_by:
+            self.disliked_by.remove(user)
+
+        self.liked_by.append(user)
+        db.commit()
+
+    def dislike(self, user: User, db: Session):
+
+        if self.user_id == user.id:
+            raise HTTPException(
+                status_code=HTTPStatus.BAD_REQUEST,
+                detail='you cant dislike your own post'
+            )
+
+        if user in self.disliked_by:
+            self.disliked_by.remove(user)
+            db.commit()
+            return
+
+        if user in self.liked_by:
+            self.liked_by.remove(user)
+
+        self.disliked_by.append(user)
+        db.commit()
 
     @classmethod
     def create(cls, post: PostCreate, user_id: int, db: Session):
