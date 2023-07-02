@@ -16,6 +16,8 @@ psycopg2-binary = "^2.9.6"
 alembic = "^1.11.1"
 requests = "^2.31.0"
 py3-validate-email = "^1.0.5.post1"
+pyjwt = "^2.7.0"
+passlib = {extras = ["bcrypt"], version = "^1.7.4"}
 
 
 [build-system]
