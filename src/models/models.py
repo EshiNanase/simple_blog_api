@@ -1,6 +1,5 @@
-from sqlalchemy.orm import relationship, Session
-from sqlalchemy.sql import func
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, select
+from sqlalchemy.orm import relationship, Session, deferred
+from sqlalchemy import Column, Integer, String, ForeignKey, DateTime
 from .database import Base
 from validate_email import validate_email
 from http import HTTPStatus
@@ -17,7 +16,7 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String, unique=True, nullable=False, index=True)
     username = Column(String, unique=True, nullable=False, index=True)
-    password = Column(String, nullable=False)
+    password = deferred(Column(String, nullable=False))
 
     posts = relationship('Post', back_populates='creator')
 
@@ -30,13 +29,13 @@ class User(Base):
                 detail='email is not valid!'
             )
 
-        if db.query(User.id).filter_by(username=user.username).first():
+        if db.query(User).filter_by(username=user.username).first():
             raise HTTPException(
                 status_code=HTTPStatus.BAD_REQUEST,
                 detail='username already exists!'
             )
 
-        if db.query(User.id).filter_by(email=user.email).first():
+        if db.query(User).filter_by(email=user.email).first():
             raise HTTPException(
                 status_code=HTTPStatus.BAD_REQUEST,
                 detail='email already exists!'
@@ -55,10 +54,9 @@ class User(Base):
         return user
 
     @classmethod
-    def get(cls, user: UserAuthenticate, auth_handler: AuthHandler, db: Session):
-
-        user_instance = db.query(User.id).filter_by(email=user.email).first()
-        if not user_instance:
+    def login(cls, user: UserAuthenticate, auth_handler: AuthHandler, db: Session):
+        user = db.query(User).filter_by(email=user.email).first()
+        if not user:
             return HTTPException(
                 status_code=HTTPStatus.NOT_FOUND,
                 detail='no such user'
@@ -68,7 +66,18 @@ class User(Base):
                 status_code=HTTPStatus.NOT_FOUND,
                 detail='wrong password'
             )
-        return user_instance
+        return user
+
+    @classmethod
+    def get(cls, user_id: int, db: Session):
+
+        user = db.query(User).filter_by(id=user_id).first()
+        if not user:
+            return HTTPException(
+                status_code=HTTPStatus.NOT_FOUND,
+                detail='no such user'
+            )
+        return user
 
 
 class Post(Base):
@@ -82,7 +91,7 @@ class Post(Base):
     creator = relationship('User', back_populates='posts', uselist=False)
 
     @classmethod
-    def create(cls, post: PostCreate, user_id, db):
+    def create(cls, post: PostCreate, user_id: int, db: Session):
 
         post = Post(
             title=post.title,
@@ -93,5 +102,18 @@ class Post(Base):
         db.add(post)
         db.commit()
         db.refresh(post)
+
+        return post
+
+    @classmethod
+    def get(cls, post_id: int, db: Session):
+
+        post = db.query(Post).filter_by(id=post_id).first()
+
+        if not post:
+            raise HTTPException(
+                status_code=HTTPStatus.NOT_FOUND,
+                detail='no such post'
+            )
 
         return post
